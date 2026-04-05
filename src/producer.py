@@ -13,7 +13,7 @@ async def producer(file: UploadFile, n: int):
 
         # Decode bytes and combine with the last partial string
         data = remainder + chunk_bytes.decode("utf-8")
-        parts = data.split("/\n")
+        parts = data.split("\n")
 
         # Yield all complete parts (everything except the last index)
         for part in parts[:-1]:
