@@ -1,13 +1,18 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
-
+from dotenv import load_dotenv
 import asyncpg
+from aiocsv import AsyncDictReader
+from aiofiles import open as aio_open
 from fastapi import FastAPI, File, UploadFile, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 
 
 from .producer import producer
+
+load_dotenv()
+
 
 app = FastAPI()
 DATABASE_URL = os.getenv(
@@ -66,8 +71,9 @@ async def runner(file: UploadFile, queue: asyncio.Queue, pool: asyncpg.Pool):
             # Process files up to 10MB
 
             tasks = [asyncio.create_task(_worker(i, queue, pool)) for i in range(4)]
-            async for value in producer(file, 1024):
-                await queue.put(value)
+            async with aio_open(f"{file.filename}", mode="r") as f:
+                async for value in AsyncDictReader(f):
+                    await queue.put(value)
 
             await queue.join()
             for w in tasks:
