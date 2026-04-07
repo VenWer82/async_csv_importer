@@ -1,8 +1,10 @@
 import asyncio
+import asyncpg
+from typing import AsyncGenerator
 from fastapi import UploadFile
 
 
-async def producer(file: UploadFile, n: int):
+async def producer(file: UploadFile, n: int) -> AsyncGenerator[str, None]:
     remainder = ""
     while True:
         chunk_bytes = await file.read(n)
@@ -17,7 +19,16 @@ async def producer(file: UploadFile, n: int):
 
         # Yield all complete parts (everything except the last index)
         for part in parts[:-1]:
-            yield part.strip()
+            if part.strip():
+                yield part.strip()
 
         # Keep the last part as the remainder for the next iteration
         remainder = parts[-1]
+
+
+async def handle_large_file(
+    file: UploadFile,
+    conn: asyncpg.Connection,
+    table_name: str,
+):
+    pass
