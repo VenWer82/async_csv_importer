@@ -31,4 +31,9 @@ async def handle_large_file(
     conn: asyncpg.Connection,
     table_name: str,
 ):
+    """Stream a large CSV into PostgreSQL using COPY for better performance."""
+    # 1. Read the uploaded file in chunks or stream it through a temporary file.
+    # 2. Build the COPY command for the target table.
+    # 3. Use asyncpg's COPY support (or a temporary stdin-based approach) to ingest rows.
+    # 4. Handle errors and close resources cleanly.
     pass

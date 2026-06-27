@@ -7,8 +7,9 @@ from aiofiles import open as aio_open
 from fastapi import FastAPI, File, UploadFile, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from .db.db import db, get_db
-
+from .services.worker import _worker
 from .services.producer import producer, handle_large_file
+from .utils.utils import prepare_table
 
 load_dotenv()
 
@@ -37,44 +38,16 @@ app.add_middleware(
 )
 
 
-async def _worker(
-    worker_id: int,
-    queue: asyncio.Queue,
-    conn: asyncpg.Connection,
-    table_name: str,
-    headers: list[str],
-):
-    try:
-        # Pre-build the insert query with the specific table and columns
-        placeholders = ", ".join([f"${i+1}" for i in range(len(headers))])
-        columns_str = ", ".join(headers)
-        insert_query = (
-            f"INSERT INTO {table_name} ({columns_str}) VALUES ({placeholders})"
-        )
 
-        while True:
-            value = await queue.get()
-            try:
-                # Parse the CSV line (naive split by comma)
-                row_data = [v.strip() for v in value.split(",")]
-
-                if len(row_data) != len(headers):
-                    print(
-                        f"Worker {worker_id}: Row length mismatch. Expected {len(headers)}, got {len(row_data)}"
-                    )
-                    continue
-
-                await conn.execute(insert_query, *row_data)
-            except Exception as e:
-                print(f"Worker {worker_id} error processing item: {e}")
-            finally:
-                queue.task_done()
-    except asyncio.CancelledError:
-        pass
 
 
 async def runner(file: UploadFile, queue: asyncio.Queue, conn: asyncpg.Connection):
     tasks = []
+    table_name = (
+        file.filename.rsplit(".", 1)[0]
+        if file.filename
+        else f"import_{os.urandom(4).hex()}"
+    )
     try:
 
         # Instantiate the generator once so we can pull the header separately
@@ -85,19 +58,9 @@ async def runner(file: UploadFile, queue: asyncio.Queue, conn: asyncpg.Connectio
         except StopAsyncIteration:
             return  # File was empty
 
-        # Sanitize headers for SQL compatibility (lowercase, underscores instead of spaces/hyphens)
-        raw_headers = [h.strip() for h in header_line.split(",")]
-        sanitized_headers = [
-            h.lower().replace(" ", "_").replace("-", "_") for h in raw_headers
-        ]
-
-        # Create a unique table for this import session
-        table_name = f"import_{os.urandom(4).hex()}"
-        col_defs = ", ".join([f"{h} TEXT" for h in sanitized_headers])
-
-        await conn.execute(f"CREATE TABLE {table_name} ({col_defs})")
-
-        print(f"Created table {table_name} with columns: {sanitized_headers}")
+        table_name, sanitized_headers = await prepare_table(
+            header_line, conn, table_name
+        )
         if file.size is not None and file.size <= 10 * 1024 * 1024:
 
             # Start workers with table context

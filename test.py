@@ -1,10 +1,5 @@
-n = 0
-count = 0
+"""Compatibility shim for the repository's test entry point.
 
-for i in range(n):
-    for j in range(n):
-        for k in range(n):
-            if i < j and j < k:
-                count += 1
-
-print(count)
+Use pytest directly for real test execution:
+    pytest -q
+"""
