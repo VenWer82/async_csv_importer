@@ -36,4 +36,3 @@ async def handle_large_file(
     # 2. Build the COPY command for the target table.
     # 3. Use asyncpg's COPY support (or a temporary stdin-based approach) to ingest rows.
     # 4. Handle errors and close resources cleanly.
-    pass
