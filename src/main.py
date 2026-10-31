@@ -1,17 +1,19 @@
 import asyncio
-import os
 import logging
+import os
 from contextlib import asynccontextmanager
-from dotenv import load_dotenv
+
 import asyncpg
 from aiofiles import open as aio_open
-from fastapi import FastAPI, UploadFile, BackgroundTasks
+from dotenv import load_dotenv
+from fastapi import BackgroundTasks, FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+
 from .db.db import db
+from .services.producer import handle_large_file, producer
 from .services.worker import _worker
-from .services.producer import producer, handle_large_file
-from .utils.utils import prepare_table
 from .utils.deps import _get_db, file
+from .utils.utils import prepare_table
 
 load_dotenv()
 
@@ -101,7 +103,7 @@ async def runner(file: UploadFile, queue: asyncio.Queue, conn: asyncpg.Connectio
             await handle_large_file(file, conn, table_name)
 
     except Exception as e:
-        logger.error(f"Runner error: {e}")
+        logger.exception("Runner error: ", exc_info=e)
 
 
 @app.get("/")

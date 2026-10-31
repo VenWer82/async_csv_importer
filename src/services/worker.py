@@ -1,10 +1,11 @@
 import asyncio
+
 import asyncpg
 
 
 async def _worker(
     worker_id: int,
-    queue: asyncio.Queue,
+    queue: asyncio.Queue[str],
     conn: asyncpg.Connection,
     table_name: str,
     headers: list[str],
@@ -19,7 +20,7 @@ async def _worker(
         try:
             value = await queue.get()
             # Parse the CSV line (naive split by comma)
-            row_data = [v.strip() for v in value.split(",")]
+            row_data: list[str] = [v.strip() for v in value.split(",")]
 
             if len(row_data) != len(headers):
                 print(
